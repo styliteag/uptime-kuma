@@ -20,6 +20,7 @@ const radiusClient = require("node-radius-client");
 const redis = require("redis");
 const oidc = require("openid-client");
 const tls = require("tls");
+const dns = require("dns");
 
 const {
     dictionaries: {
@@ -1063,11 +1064,41 @@ module.exports.axiosAbortSignal = (timeoutMs) => {
         try {
             const abortController = new AbortController();
             setTimeout(() => abortController.abort(), timeoutMs);
-
+            
             return abortController.signal;
         } catch (_) {
             // v15-: AbortController is not supported
             return null;
         }
     }
+};
+
+/**
+ * lookup the hostname and return a single IP Address of the specified IP address family.
+ * @param {string} hostname hostname to lookup
+ * @param {int} ipFamily valid values are 4 or 6 - for IPv4 or IPv6 respectively
+ * @returns {string} the resolved address
+ */
+module.exports.lookup = async (hostname, ipFamily) => {
+    return new Promise((resolve, reject) => {
+        if (ipFamily === 4 || ipFamily === 6) {
+            const options = {
+                family: ipFamily,
+                all: false
+            };
+            dns.lookup(hostname, options, (err, address, addrFamily) => {
+                log.debug("lookup", `hostname: ${hostname}, ipFamily: ${ipFamily}, address: ${address}, addrFamily: IPv${addrFamily}, err: ${err}`);
+                if (ipFamily !== addrFamily) {
+                    reject("Error: Incorrect IP family.");
+                }
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(address);
+                }
+            });
+        } else {
+            resolve(hostname);
+        }
+    });
 };
