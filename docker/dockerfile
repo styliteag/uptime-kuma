@@ -1,4 +1,9 @@
 ARG BASE_IMAGE=louislam/uptime-kuma:base2
+# Patched Node.js runtime swapped into the upstream base images (Node 20 is EOL)
+# See https://nodejs.org/en/blog/vulnerability/october-2026-security-releases
+ARG NODE_IMAGE=node:22.23.4-bookworm-slim
+
+FROM $NODE_IMAGE AS node_runtime
 
 ############################################
 # Build in Golang
@@ -11,6 +16,8 @@ FROM louislam/uptime-kuma:builder-go AS build_healthcheck
 # Build in Node.js
 ############################################
 FROM louislam/uptime-kuma:base2 AS build
+COPY --from=node_runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node_runtime /usr/local/include/node /usr/local/include/node
 USER node
 WORKDIR /app
 
@@ -27,6 +34,7 @@ RUN mkdir ./data
 # ⭐ Main Image
 ############################################
 FROM $BASE_IMAGE AS release
+COPY --from=node_runtime /usr/local/bin/node /usr/local/bin/node
 USER node
 WORKDIR /app
 
